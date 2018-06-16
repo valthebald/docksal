@@ -4943,6 +4943,18 @@ sysinfo ()
 	stats_ping
 }
 
+# Figure out Play-with-Docker domain for a specific port
+# @param $1 port number
+get_pwd_domain ()
+{
+	# Figure out internal container IP (eth1)
+	local ip="$(ip addr show eth1 | grep 'inet' | sed -E 's/.* (.*)\/.*/\1/' | sed 's/\./-/g')"
+	local port="${1:-80}"
+	local pwd_domain='direct.labs.play-with-docker.com'
+
+	echo "ip${ip}-$SESSION_ID-${port}.${pwd_domain}"
+}
+
 #-------------------------- Links / Aliases -----------------------------
 
 # param $1 path
@@ -5081,13 +5093,17 @@ load_configuration ()
 		export COMPOSE_PROJECT_VHOST_NAME_SAFE
 	fi
 
-	# Set defaults
-	if is_pwd || is_katacoda; then
-		# Don't include .$DOCKSAL_DNS_DOMAIN in Play-with-Docker or Katacoda to keep the URL shorter.
+	# Set default VIRTUAL_HOST
+	if is_katacoda; then
+		# Don't include .$DOCKSAL_DNS_DOMAIN for Katacoda to keep the URL shorter.
 		export VIRTUAL_HOST=${VIRTUAL_HOST:-$COMPOSE_PROJECT_VHOST_NAME_SAFE}
+	elif is_pwd; then
+		# Use PWD domain instead of $DOCKSAL_DNS_DOMAIN
+		export VIRTUAL_HOST=${VIRTUAL_HOST:-$COMPOSE_PROJECT_VHOST_NAME_SAFE.$(get_pwd_domain)}
 	else
 		export VIRTUAL_HOST=${VIRTUAL_HOST:-$COMPOSE_PROJECT_VHOST_NAME_SAFE.$DOCKSAL_DNS_DOMAIN}
 	fi
+
 	export DOCROOT=${DOCROOT:-docroot}
 
 	# Make project root globally available
